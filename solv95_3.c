@@ -1,0 +1,147 @@
+#include <stdlib.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include "solv95.h"
+#include "ddeq.h"
+
+double t0, t1, ddt, tol, dout, ddt; 
+int nhv, nlag, nsw, ns, hbsize;
+extern int no_var;
+
+// constant aliases //
+// ================ //
+
+// time lags
+int itauE = 0;
+int itauL = 1;
+int itauP = 2;
+int itauA = 3;
+int itauPL = 4;
+int itauPA = 5;
+// mortality
+int iDE = 6;
+int iDL = 7;
+int iDP = 8;
+int iDA = 9;
+int iDPL = 10;
+int iDPA = 11;
+// survival
+int isigmaE = 12;
+int isigmaL = 13;
+int isigmaP = 14;
+int isigmaA = 15;
+int isigmaPL = 16;
+int isigmaPA = 17;
+// fecundity
+int ibHA = 18;
+// competition
+int iC = 19;
+// parasitism
+int irk = 20;
+int ia = 21;
+int irm = 22;
+
+int no_con = 23;
+
+FILE *outfile;
+
+void fileopen()
+{
+ outfile = fopen("results/test.dat","w"); 
+}
+
+
+void error(char *str)
+
+{ printf(str, "Error!");
+
+  exit(-13);
+}
+
+
+void output(s,t) double *s,t;
+/* this is the routine that updates the output structures it is called by
+   dde() when required
+*/
+
+{ int i,j,k;
+  double y;
+  
+  { 
+	  fprintf(outfile,"%8.4g",t);
+	  { 
+		  fprintf(outfile,"  %8.4g %8.4g ",s[0],s[1]);
+	  }
+  fprintf(outfile,"\n");
+  }
+}
+
+
+void numerics(double *c, double ddt)
+{ 
+	static double *s;
+	double dt;
+	int fixstep=0; /* 0 adaptive, 1 fixed*/
+	//static int first=1;
+	
+	dt=ddt;
+	s=(double *)calloc(no_var,sizeof(double));
+	initiatestate(s,c,t0);
+	dde(s,c,t0,t1,&dt,tol,dout,ns,nsw,nhv,hbsize,nlag,fixstep);
+}
+
+
+//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+//                   PSTR lpszCmdParam, int nCmdShow)
+int main(void)				   
+{ 
+	double *c;	
+	
+	t0 =0.0;        /* start time */
+	t1 =100.0;     /* stop time */
+	ddt =1.0/3.0;        /* initial timestep */
+	tol =1e-8;  /* integration tolerance */
+	dout =1.0/52.0;    /* approximate average output timestep */
+	hbsize =200000L;  /* how many past values to store for each history variable */ 
+	nhv=7;         /* Number of history (lagged) variables */
+	nlag =1;        /* Number of lag markers per history variable (set to 1 if unsure)*/
+	nsw =0;         /* number of switch varaibles */
+	ns =3;
+
+	fileopen();
+	c=(double *)calloc(no_con,sizeof(double));
+	c[itauE] = 4.3;
+      	c[itauL] = 25.0;
+      	c[itauP] = 7.0;
+      	c[itauA] = 5.5;
+      	c[itauPL] = 20.0;
+      	c[itauPA] = 2.0;
+	// mortality
+      	c[iDE] = 0.017;
+      	c[iDL] = 0.0;
+      	c[iDP] = 0.0;
+      	c[iDA] = 0.1;
+      	c[iDPL] = 0.1;
+      	c[iDPA] = 0.1;
+	// survival
+      	c[isigmaE] = exp(-c[iDE]*c[itauE]);
+      	c[isigmaL] = exp(-c[iDL]*c[itauL]);
+      	c[isigmaP] = exp(-c[iDP]*c[itauP]);
+      	c[isigmaA] = exp(-c[iDA]*c[itauA]);
+      	c[isigmaPL] = exp(-c[iDPL]*c[itauPL]);
+      	c[isigmaPA] = exp(-c[iDPA]*c[itauPA]);
+	// fecundity
+      	c[ibHA] = 21.0;
+	// competition
+      	c[iC] = 2.5*pow(10,-4);
+	// parasitism
+      	c[irk] = 1.0;
+      	c[ia] = 0.01;
+      	c[irm] = 0.0;
+
+	numerics(c, ddt); // Actually does something (the calculations)
+	
+	fclose(outfile);
+	return 0/*msg.wParam*/ ;
+}
